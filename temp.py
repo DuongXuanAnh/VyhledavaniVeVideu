@@ -1,21 +1,26 @@
 import annoy
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
-
+import csv
 # Načtení CSV souboru s deskriptory obrázků do Pandas dataframe
 df = pd.read_csv("CLIP_VITB32.csv", names=["ID"] + list(range(512)), sep=";", dtype=str)
 
-# Vytvoření slovníku, který mapuje ID obrázku na jeho vektor deskriptoru
-descriptor_dict = df.set_index("ID").to_dict()[0]
+with open('CLIP_VITB32.csv', 'r') as f:
+  reader = csv.reader(f, delimiter=';')
+  data = list(reader)
+
 
 # Vytvoření Annoy indexu pro rychlé vektorové vyhledávání
 index = annoy.AnnoyIndex(512, metric="euclidean")
+# index = annoy.AnnoyIndex(512, metric="cosine")
 
-# Přidání vektorů deskriptorů do indexu
-for idx, descriptor in enumerate(df[0].values):
-     # Převod vektoru deskriptoru na seznam pomocí funkce tolist()
-    descriptor_list = [float(x) for x in descriptor.split(";")]
-    index.add_item(idx, descriptor_list)
+for i in range (len(data)):
+    index.add_item(i, [float(x) for x in data[i]])
+
+# # Přidání vektorů deskriptorů do indexu
+# for idx, descriptor in enumerate(df[0].values):
+#     descriptor_list = [float(x) for x in descriptor.split(";")]
+#     index.add_item(idx, descriptor_list)
 
 def generate_descriptor_for_text(text):
     # Vytvoření bag-of-words pomocí CountVectorizer

@@ -42,7 +42,7 @@ def hide_borders():
 def cosine_similarity(v1, v2): # cang lon cang giong
     return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
 
-def topSimilarImages(text):
+def topSimilarImages(text, numberOfImages = 10):
     # Z textu udela vektor
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model, preprocess = clip.load("ViT-B/32", device=device)
@@ -67,7 +67,7 @@ def topSimilarImages(text):
     df = df.sort_values(by='similarity', ascending=False)
 
     # Select the top 5 vectors
-    top_vectors = df[:5]
+    top_vectors = df[:numberOfImages]
 
     return top_vectors.index.to_list()
     
@@ -77,7 +77,7 @@ def topSimilarImages(text):
 def search_clip(text):
     # print(text)
    
-    top_result = topSimilarImages(text) # TODO: text query clip search
+    top_result = topSimilarImages(text, numberOfImages = shown) # TODO: text query clip search
     # top result - sorted score (position)
 
     for i in range(shown):

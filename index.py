@@ -3,16 +3,23 @@ from tkinter import ttk
 import requests
 from PIL import Image, ImageTk
 import os
+import numpy as np
+import pandas as pd
+import torch
+import clip
  
 shown = 96
 url = "https://siret.ms.mff.cuni.cz/lokoc/VBSEval/EndPoint.php"
-dataset_path = "Images/"  # TODO: set path to dataset
+dataset_path = "Images/"
+
+
 # get images address
 filenames = []
 for fn in sorted(os.listdir(dataset_path)):
     filename = dataset_path + fn
     filenames.append(filename)
- 
+
+
 root = tk.Tk()
 root.title("Searcher")
 root.wm_attributes('-fullscreen', 'true')
@@ -29,12 +36,50 @@ def hide_borders():
     for button in images_buttons:
         button.config(bg="black")
     selected_images = []
+
+# ---------------------------------------------------------------------------------------------------
+
+def cosine_similarity(v1, v2): # cang lon cang giong
+    return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+
+def topSimilarImages(text):
+    # Z textu udela vektor
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model, preprocess = clip.load("ViT-B/32", device=device)
+
+    text = clip.tokenize(text).to(device)
+
+    with torch.no_grad():
+        text_features = model.encode_text(text)
+
+    text_vector = np.array(text_features[0], dtype=np.float32)
+
+    df = pd.read_csv('CLIP_VITB32.csv', sep=";")
+
+    vectors = df.to_numpy()
+
+    similarities = [cosine_similarity(text_vector, v) for v in vectors]
+
+    # Add the similarities as a new column to the DataFrame
+    df['similarity'] = similarities
+
+    # Sort the vectors by their similarity to the reference vector
+    df = df.sort_values(by='similarity', ascending=False)
+
+    # Select the top 5 vectors
+    top_vectors = df[:5]
+
+    return top_vectors.index.to_list()
+    
  
- 
+# ----------------------------------------------------------------------------------------------------
+
 def search_clip(text):
-    print(text)
-    top_result = ...  # TODO: text query clip search
+    # print(text)
+   
+    top_result = topSimilarImages(text) # TODO: text query clip search
     # top result - sorted score (position)
+
     for i in range(shown):
         shown_images[i] = ImageTk.PhotoImage(Image.open(filenames[top_result[i]]).resize(image_size))
         images_buttons[i].configure(image=shown_images[i], text=filenames[top_result[i]],
@@ -62,7 +107,7 @@ def close_win(e):
  
 def send_result():
     key_i = (selected_images[0][-9:])[:5]
-    my_obj = {'team': "name", 'item': key_i}
+    my_obj = {'team': "Duong Xuan Anh", 'item': key_i}
  
     x = requests.get(url=url, params=my_obj)
     print(x.text)

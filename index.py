@@ -19,7 +19,6 @@ for fn in sorted(os.listdir(dataset_path)):
     filename = dataset_path + fn
     filenames.append(filename)
 
-
 root = tk.Tk()
 root.title("Searcher")
 root.wm_attributes('-fullscreen', 'true')
@@ -39,8 +38,27 @@ def hide_borders():
 
 # ---------------------------------------------------------------------------------------------------
 
-def cosine_similarity(v1, v2): # cang lon cang giong
-    return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+def cosine_distance(v1, v2): # cang nho cang giong
+    return 1 - np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+
+def euclidean_distance(v1, v2):
+    return np.sqrt(np.sum((v1 - v2)**2))
+
+def manhattan_distance(v1, v2):
+    return np.sum(np.abs(v1 - v2))
+
+def pearson_correlation(x, y):
+    x_mean = np.mean(x)
+    y_mean = np.mean(y)
+    x_std = np.std(x)
+    y_std = np.std(y)
+    cov = np.sum((x - x_mean) * (y - y_mean))
+    return 0 - cov / (x_std * y_std)
+
+def jaccard_similarity(vec1, vec2): # Hledani coralu (San ho)
+  intersection = set(vec1).intersection(vec2)
+  union = set(vec1).union(vec2)
+  return len(intersection) / len(union)
 
 def topSimilarImages(text, numberOfImages = 10):
     # Z textu udela vektor
@@ -58,20 +76,19 @@ def topSimilarImages(text, numberOfImages = 10):
 
     vectors = df.to_numpy()
 
-    similarities = [cosine_similarity(text_vector, v) for v in vectors]
+    similarities = [cosine_distance(text_vector, v) for v in vectors]
 
     # Add the similarities as a new column to the DataFrame
     df['similarity'] = similarities
 
     # Sort the vectors by their similarity to the reference vector
-    df = df.sort_values(by='similarity', ascending=False)
+    df = df.sort_values(by='similarity', ascending=True)
 
     # Select the top 5 vectors
     top_vectors = df[:numberOfImages]
 
     return top_vectors.index.to_list()
-    
- 
+
 # ----------------------------------------------------------------------------------------------------
 
 def search_clip(text):
@@ -107,7 +124,10 @@ def close_win(e):
  
 def send_result():
     key_i = (selected_images[0][-9:])[:5]
-    my_obj = {'team': "Duong Xuan Anh", 'item': key_i}
+
+    print(key_i)
+
+    my_obj = {'team': "duongx", 'item': key_i}
  
     x = requests.get(url=url, params=my_obj)
     print(x.text)

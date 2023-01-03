@@ -90,11 +90,35 @@ def topSimilarImages(text, numberOfImages = 10):
 
     return top_vectors.index.to_list()
 
+def topSimilarImages2(imgID, numberOfImages = 10):
+    df = pd.read_csv('CLIP_VITB32.csv', sep=";")
+    vectors = df.to_numpy()
+
+    if(imgID == '00000'):
+        imgID = 0
+    else:
+        imgID = imgID.lstrip('0')
+        imgID = int(imgID)
+    
+    img_vector = vectors[imgID]
+
+    similarities = [cosine_distance(img_vector, v) for v in vectors]
+
+    # Add the similarities as a new column to the DataFrame
+    df['similarity'] = similarities
+
+    # Sort the vectors by their similarity to the reference vector
+    df = df.sort_values(by='similarity', ascending=True)
+
+    # Select the top 5 vectors
+    top_vectors = df[:numberOfImages]
+
+    return top_vectors.index.to_list()
+
 # ----------------------------------------------------------------------------------------------------
 
 def search_clip(text):
     # print(text)
-   
     top_result = topSimilarImages(text, numberOfImages = shown) # TODO: text query clip search
     # top result - sorted score (position)
 
@@ -132,7 +156,60 @@ def send_result():
  
     x = requests.get(url=url, params=my_obj, verify=False)
     print(x.text)
+
+def find_similar_pictures():
+    key_i = (selected_images[0][-9:])[:5]
+    print(key_i)
+
+    top_result = topSimilarImages2(key_i, numberOfImages = shown) # TODO: text query clip search
+    # top result - sorted score (position)
+
+    for i in range(shown):
+        shown_images[i] = ImageTk.PhotoImage(Image.open(filenames[top_result[i]]).resize(image_size))
+        images_buttons[i].configure(image=shown_images[i], text=filenames[top_result[i]],
+                                    command=(lambda j=i: on_click(j)))
+    hide_borders()
+
+
+def find_back_img():
     
+    key_i = (selected_images[0][-9:])[:5]
+    if(key_i == '00000'):
+        key_i = 0
+    else:
+        key_i = key_i.lstrip('0')
+        key_i = int(key_i)
+    top_result = []
+    for i in range(96):
+        top_result.append(i + key_i)
+
+    for i in range(shown):
+        shown_images[i] = ImageTk.PhotoImage(Image.open(filenames[top_result[i]]).resize(image_size))
+        images_buttons[i].configure(image=shown_images[i], text=filenames[top_result[i]],
+                                    command=(lambda j=i: on_click(j)))
+    hide_borders()
+    
+
+
+def find_front_img():
+
+    key_i = (selected_images[0][-9:])[:5]
+    if(key_i == '00000'):
+        key_i = 0
+    else:
+        key_i = key_i.lstrip('0')
+        key_i = int(key_i)
+    top_result = []
+    for i in range(96):
+        top_result.append(key_i - i)
+
+    for i in range(shown):
+        shown_images[i] = ImageTk.PhotoImage(Image.open(filenames[top_result[i]]).resize(image_size))
+        images_buttons[i].configure(image=shown_images[i], text=filenames[top_result[i]],
+                                    command=(lambda j=i: on_click(j)))
+    hide_borders()
+
+
  
 # create window
 window = ttk.Panedwindow(root, orient=tk.HORIZONTAL)
@@ -163,6 +240,20 @@ text_index.pack(side=tk.TOP, pady=5)
 # sending select result
 send_result_b = tk.Button(search_bar, text="Send selected index", command=(lambda: send_result()))
 send_result_b.pack(side=tk.TOP, pady=5)
+
+
+# Find similar pictures
+find_similar_img_b = tk.Button(search_bar, text="Find similar pictures", command=(lambda: find_similar_pictures()))
+find_similar_img_b.pack(side=tk.TOP, pady=100)
+
+# Find back pictures
+find_back_img_b = tk.Button(search_bar, text="Find back neighborhood", command=(lambda: find_back_img()))
+find_back_img_b.pack(side=tk.TOP, pady=5)
+
+# Find front pictures
+find_front_img_b = tk.Button(search_bar, text="Find front neighborhood", command=(lambda: find_front_img()))
+find_front_img_b.pack(side=tk.TOP, pady=5)
+
 # set control-v to set result
 root.bind('<Control-v>', lambda e: send_result())
  

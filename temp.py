@@ -4,9 +4,11 @@ import requests
 from PIL import Image, ImageTk
 import os
 import numpy as np
-import clip
+import pandas as pd
 import torch
-
+import clip
+import requests
+ 
 shown = 96
 url = "https://siret.ms.mff.cuni.cz/lokoc/VBSEval/EndPoint.php"
 dataset_path = "Images/"
@@ -18,7 +20,6 @@ for fn in sorted(os.listdir(dataset_path)):
     filename = dataset_path + fn
     filenames.append(filename)
 
-
 root = tk.Tk()
 root.title("Searcher")
 root.wm_attributes('-fullscreen', 'true')
@@ -29,57 +30,71 @@ images_buttons = []
 selected_images = []
 shown_images = []
  
-
-
-# Load the model
-device = "cuda" if torch.cuda.is_available() else "cpu"
-model, preprocess = clip.load('ViT-B/32', device)
-
-# Načtěte CSV soubor s deskriptory obrázků do Pandas dataframe
-import pandas as pd
-df = pd.read_csv("CLIP_VITB32.csv", names=["ID"] + list(range(512)), sep=";", dtype=str)
-
-def generate_descriptor_for_text(text):
-    # Vytvoření vektoru deskriptoru pro zadaný text pomocí CLIP modelu
-    descriptor = model.encode(text)[0]
-    return descriptor
-
-def search_images(text, n=5):
-    # Vytvoření vektoru deskriptoru pro zadaný text
-    query_descriptor = generate_descriptor_for_text(text)
-
-    # Seznam pro uložení výsledků vyhledávání
-    results = []
-    
-    # Procházení všech vektorů deskriptorů obrázků
-    for idx, descriptor in enumerate(df[0].values):
-        # Převod vektoru deskriptoru na numpy pole
-        descriptor = np.array([float(x) for x in descriptor.split(";")])
-        
-        # Získání podobnosti mezi vektorem deskriptoru obrázku a vektorem deskriptoru zadaného textu
-        similarity = model.similarity(query_descriptor, descriptor)
-        
-        # Uložení výsledku vyhledávání do seznamu
-        image_id = df.iloc[idx]["ID"]
-        image_name = f"Image_{image_id}.jpg"
-        results.append((image_name, similarity))
-        # Seřazení výsledků vyhledávání podle podobnosti
-        results.sort(key=lambda x: x[1], reverse=True)
-        
-        # Vrácení nejpodobnějších obrázků
-        return results[:n]
  
 def hide_borders():
     global selected_images
     for button in images_buttons:
         button.config(bg="black")
     selected_images = []
- 
- 
+
+# ---------------------------------------------------------------------------------------------------
+
+def cosine_distance(v1, v2): # cang nho cang giong
+    return 1 - np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+
+def euclidean_distance(v1, v2):
+    return np.sqrt(np.sum((v1 - v2)**2))
+
+def manhattan_distance(v1, v2):
+    return np.sum(np.abs(v1 - v2))
+
+def pearson_correlation(x, y):
+    x_mean = np.mean(x)
+    y_mean = np.mean(y)
+    x_std = np.std(x)
+    y_std = np.std(y)
+    cov = np.sum((x - x_mean) * (y - y_mean))
+    return 0 - cov / (x_std * y_std)
+
+def jaccard_similarity(vec1, vec2): # Hledani coralu (San ho)
+  intersection = set(vec1).intersection(vec2)
+  union = set(vec1).union(vec2)
+  return len(intersection) / len(union)
+
+def topSimilarImages(text, numberOfImages = 10):
+    # Z textu udela vektor
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model, preprocess = clip.load("ViT-B/32", device=device)
+
+    text = clip.tokenize(text).to(device)
+
+    with torch.no_grad():
+        text_features = model.encode_text(text)
+
+    text_vector = np.array(text_features[0], dtype=np.float32)
+
+    df = pd.read_csv('CLIP_VITB32.csv', sep=";")
+
+    vectors = df.to_numpy()
+
+    similarities = [cosine_distance(text_vector, v) for v in vectors]
+
+    # Add the similarities as a new column to the DataFrame
+    df['similarity'] = similarities
+
+    # Sort the vectors by their similarity to the reference vector
+    df = df.sort_values(by='similarity', ascending=True)
+
+    # Select the top 5 vectors
+    top_vectors = df[:numberOfImages]
+
+    return top_vectors.index.to_list()
+
+# ----------------------------------------------------------------------------------------------------
+
 def search_clip(text):
-    print(text)
-   
-    top_result = search_images(text, n=shown) # TODO: text query clip search
+    # print(text)
+    top_result = topSimilarImages(text, numberOfImages = shown) # TODO: text query clip search
     # top result - sorted score (position)
 
     for i in range(shown):
@@ -109,11 +124,17 @@ def close_win(e):
  
 def send_result():
     key_i = (selected_images[0][-9:])[:5]
-    my_obj = {'team': "Duong Xuan Anh", 'item': key_i}
+
+    print(key_i)
+
+    my_obj = {'team': "duongx", 'item': key_i}
  
-    x = requests.get(url=url, params=my_obj)
+    x = requests.get(url=url, params=my_obj, verify=False)
     print(x.text)
- 
+
+def find_similar_pictures():
+    key_i = (selected_images[0][-9:])[:5]
+    print(key_i)
  
 # create window
 window = ttk.Panedwindow(root, orient=tk.HORIZONTAL)
@@ -144,6 +165,11 @@ text_index.pack(side=tk.TOP, pady=5)
 # sending select result
 send_result_b = tk.Button(search_bar, text="Send selected index", command=(lambda: send_result()))
 send_result_b.pack(side=tk.TOP, pady=5)
+
+
+# Find similar pictures
+find_similar_img_b = tk.Button(search_bar, text="Find similar pictures", command=(lambda: find_similar_pictures()))
+find_similar_img_b.pack(side=tk.TOP, pady=5)
 # set control-v to set result
 root.bind('<Control-v>', lambda e: send_result())
  

@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import torch
 import clip
+import requests
  
 shown = 96
 url = "https://siret.ms.mff.cuni.cz/lokoc/VBSEval/EndPoint.php"
@@ -129,9 +130,9 @@ def send_result():
 
     my_obj = {'team': "duongx", 'item': key_i}
  
-    x = requests.get(url=url, params=my_obj)
+    x = requests.get(url=url, params=my_obj, verify=False)
     print(x.text)
- 
+    
  
 # create window
 window = ttk.Panedwindow(root, orient=tk.HORIZONTAL)

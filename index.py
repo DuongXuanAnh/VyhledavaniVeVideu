@@ -29,6 +29,8 @@ image_size = (int(root.winfo_screenwidth() / 14) - 4, int(root.winfo_screenheigh
 images_buttons = []
 selected_images = []
 shown_images = []
+
+# selected_value_cb = "cosine_distance"
  
  
 def hide_borders():
@@ -59,9 +61,22 @@ def pearson_correlation(x, y):
 def jaccard_similarity(vec1, vec2): # Hledani coralu (San ho)
   intersection = set(vec1).intersection(vec2)
   union = set(vec1).union(vec2)
-  return len(intersection) / len(union)
+  return 1 - len(intersection) / len(union)
+
+
+selected_value_cb = "cosine_distance"
+
+def on_selection_change(event):
+  # Get the selected value from the ComboBox
+  global selected_value_cb
+  selected_value_cb = combo.get()
+  print(f"Selected value: {selected_value_cb}")
+
+
 
 def topSimilarImages(text, numberOfImages = 10):
+
+    print(selected_value_cb)
     # Z textu udela vektor
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model, preprocess = clip.load("ViT-B/32", device=device)
@@ -77,7 +92,17 @@ def topSimilarImages(text, numberOfImages = 10):
 
     vectors = df.to_numpy()
 
-    similarities = [cosine_distance(text_vector, v) for v in vectors]
+    if(selected_value_cb == "euclidean_distance"):
+        similarities = [euclidean_distance(text_vector, v) for v in vectors]
+    elif(selected_value_cb == "manhattan_distance"):
+        similarities = [manhattan_distance(text_vector, v) for v in vectors]
+    elif(selected_value_cb == "pearson_correlation"):
+        similarities = [pearson_correlation(text_vector, v) for v in vectors]
+    elif(selected_value_cb == "jaccard_similarity"):
+        similarities = [jaccard_similarity(text_vector, v) for v in vectors]
+    else:
+        similarities = [cosine_distance(text_vector, v) for v in vectors]
+
 
     # Add the similarities as a new column to the DataFrame
     df['similarity'] = similarities
@@ -102,7 +127,16 @@ def topSimilarImages2(imgID, numberOfImages = 10):
     
     img_vector = vectors[imgID]
 
-    similarities = [cosine_distance(img_vector, v) for v in vectors]
+    if(selected_value_cb == "euclidean_distance"):
+        similarities = [euclidean_distance(img_vector, v) for v in vectors]
+    elif(selected_value_cb == "manhattan_distance"):
+        similarities = [manhattan_distance(img_vector, v) for v in vectors]
+    elif(selected_value_cb == "pearson_correlation"):
+        similarities = [pearson_correlation(img_vector, v) for v in vectors]
+    elif(selected_value_cb == "jaccard_similarity"):
+        similarities = [jaccard_similarity(img_vector, v) for v in vectors]
+    else:
+        similarities = [cosine_distance(img_vector, v) for v in vectors]
 
     # Add the similarities as a new column to the DataFrame
     df['similarity'] = similarities
@@ -253,6 +287,14 @@ find_back_img_b.pack(side=tk.TOP, pady=5)
 # Find front pictures
 find_front_img_b = tk.Button(search_bar, text="Find front neighborhood", command=(lambda: find_front_img()))
 find_front_img_b.pack(side=tk.TOP, pady=5)
+
+
+# Create a ComboBox
+selected_option = tk.StringVar()
+selected_option.set("cosine_distance")
+combo = tk.ttk.Combobox(search_bar, values=["cosine_distance", "euclidean_distance", "manhattan_distance", "pearson_correlation", "jaccard_similarity"],textvariable=selected_option)
+combo.bind("<<ComboboxSelected>>", on_selection_change)
+combo.pack(side=tk.TOP, pady=5)
 
 # set control-v to set result
 root.bind('<Control-v>', lambda e: send_result())

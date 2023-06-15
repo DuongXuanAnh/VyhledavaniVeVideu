@@ -9,14 +9,15 @@ import torch
 import clip
 import requests
  
-shown = 96
-dataset_path = "Images/"
+dataset_path = "Images2/"
 
 # get images address
 filenames = []
 for fn in sorted(os.listdir(dataset_path)):
     filename = dataset_path + fn
     filenames.append(filename)
+
+shown = min(96, len(filenames))
 
 root = tk.Tk()
 root.title("Searcher")
@@ -27,7 +28,6 @@ image_size = (int(root.winfo_screenwidth() / 14) - 4, int(root.winfo_screenheigh
 images_buttons = []
 selected_images = []
 shown_images = []
- 
  
 def hide_borders():
     global selected_images
@@ -46,13 +46,6 @@ def euclidean_distance(v1, v2):
 def manhattan_distance(v1, v2):
     return np.sum(np.abs(v1 - v2))
 
-
-def jaccard_similarity(vec1, vec2): # Hledani coralu (San ho)
-  intersection = set(vec1).intersection(vec2)
-  union = set(vec1).union(vec2)
-  return 1 - len(intersection) / len(union)
-
-
 selected_value_cb = "cosine_distance"
 
 def on_selection_change(event):
@@ -61,9 +54,7 @@ def on_selection_change(event):
   selected_value_cb = combo.get()
   print(f"Selected value: {selected_value_cb}")
 
-
-
-def topSimilarImages(text, numberOfImages = 10):
+def topSimilarImages(text, numberOfImages = 50):
 
     print(selected_value_cb)
     # Z textu udela vektor
@@ -85,8 +76,6 @@ def topSimilarImages(text, numberOfImages = 10):
         similarities = [euclidean_distance(text_vector, v) for v in vectors]
     elif(selected_value_cb == "manhattan_distance"):
         similarities = [manhattan_distance(text_vector, v) for v in vectors]
-    elif(selected_value_cb == "jaccard_similarity"):
-        similarities = [jaccard_similarity(text_vector, v) for v in vectors]
     else:
         similarities = [cosine_distance(text_vector, v) for v in vectors]
 
@@ -118,8 +107,6 @@ def topSimilarImages2(imgID, numberOfImages = 10):
         similarities = [euclidean_distance(img_vector, v) for v in vectors]
     elif(selected_value_cb == "manhattan_distance"):
         similarities = [manhattan_distance(img_vector, v) for v in vectors]
-    elif(selected_value_cb == "jaccard_similarity"):
-        similarities = [jaccard_similarity(img_vector, v) for v in vectors]
     else:
         similarities = [cosine_distance(img_vector, v) for v in vectors]
 
@@ -198,8 +185,6 @@ def find_back_img():
                                     command=(lambda j=i: on_click(j)))
     hide_borders()
     
-
-
 def find_front_img():
 
     key_i = (selected_images[0][-9:])[:5]
@@ -218,8 +203,6 @@ def find_front_img():
                                     command=(lambda j=i: on_click(j)))
     hide_borders()
 
-
- 
 # create window
 window = ttk.Panedwindow(root, orient=tk.HORIZONTAL)
 window.pack(fill=tk.BOTH, expand=True)
@@ -242,7 +225,6 @@ clip_button = tk.Button(search_bar, text="Search Clip", command=(lambda: search_
 clip_button.pack(side=tk.TOP)
  
 # add info labels
-tk.Label(search_bar, text="Find index (1-11870):").pack(side=tk.TOP, pady=10)
 text_index = tk.Label(search_bar, text="Last selected image: ")
 text_index.pack(side=tk.TOP, pady=5)
 
@@ -258,15 +240,13 @@ find_back_img_b.pack(side=tk.TOP, pady=5)
 find_front_img_b = tk.Button(search_bar, text="Find front neighborhood", command=(lambda: find_front_img()))
 find_front_img_b.pack(side=tk.TOP, pady=5)
 
-
 # Create a ComboBox
 selected_option = tk.StringVar()
 selected_option.set("cosine_distance")
-combo = tk.ttk.Combobox(search_bar, values=["cosine_distance", "euclidean_distance", "manhattan_distance", "jaccard_similarity"],textvariable=selected_option)
+combo = tk.ttk.Combobox(search_bar, values=["cosine_distance", "euclidean_distance", "manhattan_distance"],textvariable=selected_option)
 combo.bind("<<ComboboxSelected>>", on_selection_change)
 combo.pack(side=tk.TOP, pady=5)
 
- 
 # set images
 for s in range(shown):
     # load image

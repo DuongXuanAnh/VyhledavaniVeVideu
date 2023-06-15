@@ -8,15 +8,9 @@ import pandas as pd
 import torch
 import clip
 import requests
-import math
-import random
  
 shown = 96
 dataset_path = "Images/"
-
-
-top_result = []
-score = []
 
 # get images address
 filenames = []
@@ -33,25 +27,13 @@ image_size = (int(root.winfo_screenwidth() / 14) - 4, int(root.winfo_screenheigh
 images_buttons = []
 selected_images = []
 shown_images = []
-
+ 
  
 def hide_borders():
     global selected_images
     for button in images_buttons:
         button.config(bg="black")
     selected_images = []
-
-# ---------------------------------------------------------------------------------------------------
-
-def L2S(x1, y1, x2, y2): return (x1-x2) ** 2 + (y1-y2) ** 2
-
-def UpdateScore(X, Y, score, display, likeID, alpha):
-    for i in range(0, len(X)):
-        PF = math.exp(-L2S(X[likeID], Y[likeID], X[i], Y[i]) / alpha)
-        NF = 0
-        for j in display:
-            NF += math.exp(-L2S(X[j], Y[j], X[i], Y[i]) / alpha)
-        score[i] = score[i] * PF / NF
 
 # ---------------------------------------------------------------------------------------------------
 
@@ -64,13 +46,6 @@ def euclidean_distance(v1, v2):
 def manhattan_distance(v1, v2):
     return np.sum(np.abs(v1 - v2))
 
-def pearson_correlation(x, y):
-    x_mean = np.mean(x)
-    y_mean = np.mean(y)
-    x_std = np.std(x)
-    y_std = np.std(y)
-    cov = np.sum((x - x_mean) * (y - y_mean))
-    return 0 - cov / (x_std * y_std)
 
 def jaccard_similarity(vec1, vec2): # Hledani coralu (San ho)
   intersection = set(vec1).intersection(vec2)
@@ -86,12 +61,11 @@ def on_selection_change(event):
   selected_value_cb = combo.get()
   print(f"Selected value: {selected_value_cb}")
 
-text_vector = []
+
 
 def topSimilarImages(text, numberOfImages = 10):
-    global text_vector
-    global score
-   
+
+    print(selected_value_cb)
     # Z textu udela vektor
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model, preprocess = clip.load("ViT-B/32", device=device)
@@ -111,22 +85,17 @@ def topSimilarImages(text, numberOfImages = 10):
         similarities = [euclidean_distance(text_vector, v) for v in vectors]
     elif(selected_value_cb == "manhattan_distance"):
         similarities = [manhattan_distance(text_vector, v) for v in vectors]
-    elif(selected_value_cb == "pearson_correlation"):
-        similarities = [pearson_correlation(text_vector, v) for v in vectors]
     elif(selected_value_cb == "jaccard_similarity"):
         similarities = [jaccard_similarity(text_vector, v) for v in vectors]
     else:
         similarities = [cosine_distance(text_vector, v) for v in vectors]
 
-    score = similarities
 
     # Add the similarities as a new column to the DataFrame
     df['similarity'] = similarities
 
     # Sort the vectors by their similarity to the reference vector
     df = df.sort_values(by='similarity', ascending=True)
-
-    
 
     # Select the top 5 vectors
     top_vectors = df[:numberOfImages]
@@ -149,8 +118,6 @@ def topSimilarImages2(imgID, numberOfImages = 10):
         similarities = [euclidean_distance(img_vector, v) for v in vectors]
     elif(selected_value_cb == "manhattan_distance"):
         similarities = [manhattan_distance(img_vector, v) for v in vectors]
-    elif(selected_value_cb == "pearson_correlation"):
-        similarities = [pearson_correlation(img_vector, v) for v in vectors]
     elif(selected_value_cb == "jaccard_similarity"):
         similarities = [jaccard_similarity(img_vector, v) for v in vectors]
     else:
@@ -167,39 +134,10 @@ def topSimilarImages2(imgID, numberOfImages = 10):
 
     return top_vectors.index.to_list()
 
-def topSimilarAfterUpdateScore(score, numberOfImages = 10):
-
-    df = pd.read_csv('CLIP_VITB32.csv', sep=";")
-    vectors = df.to_numpy()
-    if(selected_value_cb == "euclidean_distance"):
-        similarities = [euclidean_distance(score, v) for v in vectors]
-    elif(selected_value_cb == "manhattan_distance"):
-        similarities = [manhattan_distance(score, v) for v in vectors]
-    elif(selected_value_cb == "pearson_correlation"):
-        similarities = [pearson_correlation(score, v) for v in vectors]
-    elif(selected_value_cb == "jaccard_similarity"):
-        similarities = [jaccard_similarity(score, v) for v in vectors]
-    else:
-        similarities = [cosine_distance(score, v) for v in vectors]
-
-
-    # Add the similarities as a new column to the DataFrame
-    df['similarity'] = similarities
-
-    # Sort the vectors by their similarity to the reference vector
-    df = df.sort_values(by='similarity', ascending=False)
-
-    # Select the top 5 vectors
-    top_vectors = df[:numberOfImages]
-
-    return top_vectors.index.to_list()
-
-
 # ----------------------------------------------------------------------------------------------------
 
 def search_clip(text):
     # print(text)
-    global top_result
     top_result = topSimilarImages(text, numberOfImages = shown) # TODO: text query clip search
     # top result - sorted score (position)
 
@@ -208,31 +146,7 @@ def search_clip(text):
         images_buttons[i].configure(image=shown_images[i], text=filenames[top_result[i]],
                                     command=(lambda j=i: on_click(j)))
     hide_borders()
-
-def findWithNewScore(score):
-    # print(text)
-    global top_result
-    top_result = topSimilarAfterUpdateScore(score, numberOfImages = shown)
-
-    for i in range(shown):
-        shown_images[i] = ImageTk.PhotoImage(Image.open(filenames[top_result[i]]).resize(image_size))
-        images_buttons[i].configure(image=shown_images[i], text=filenames[top_result[i]],
-                                    command=(lambda j=i: on_click(j)))
-    hide_borders()
-
-def generate_random():
-     # print(text)
-    global top_result
-    top_result = []
-
-    for i in range (96):
-        top_result.append(random.randint(0, 9412))
-
-    for i in range(shown):
-        shown_images[i] = ImageTk.PhotoImage(Image.open(filenames[top_result[i]]).resize(image_size))
-        images_buttons[i].configure(image=shown_images[i], text=filenames[top_result[i]],
-                                    command=(lambda j=i: on_click(j)))
-    hide_borders()
+ 
  
 def on_click(index):
     if images_buttons[index].cget("bg") == "yellow":
@@ -251,11 +165,8 @@ def on_double_click():
 def close_win(e):
     root.destroy()
  
-def find_similar_pictures():
-    global top_result
-    
 
-    top_result = []
+def find_similar_pictures():
     key_i = (selected_images[0][-9:])[:5]
     print(key_i)
 
@@ -270,18 +181,16 @@ def find_similar_pictures():
 
 
 def find_back_img():
-    global top_result
-    top_result = []
+    
     key_i = (selected_images[0][-9:])[:5]
     if(key_i == '00000'):
         key_i = 0
     else:
         key_i = key_i.lstrip('0')
         key_i = int(key_i)
-
+    top_result = []
     for i in range(96):
         top_result.append(i + key_i)
-    
 
     for i in range(shown):
         shown_images[i] = ImageTk.PhotoImage(Image.open(filenames[top_result[i]]).resize(image_size))
@@ -292,15 +201,15 @@ def find_back_img():
 
 
 def find_front_img():
-    global top_result
-    top_result = []
+
     key_i = (selected_images[0][-9:])[:5]
     if(key_i == '00000'):
         key_i = 0
     else:
         key_i = key_i.lstrip('0')
         key_i = int(key_i)
-    for i in range(95, -1, -1):
+    top_result = []
+    for i in range(96):
         top_result.append(key_i - i)
 
     for i in range(shown):
@@ -310,35 +219,7 @@ def find_front_img():
     hide_borders()
 
 
-def update_score():
-    global score
-    global top_result
-    global text_vector
-
-    top_result = top_result
-
-    key_i = (selected_images[0][-9:])[:5]
-    if(key_i == '00000'):
-        key_i = 0
-    else:
-        key_i = key_i.lstrip('0')
-        key_i = int(key_i)
-
-    df = pd.read_csv('CLIP_VITB32.csv', sep=";")
-
-    vectors = df.to_numpy()
-
-    print(top_result)
-    print(key_i)
-    
-    
-    UpdateScore(text_vector.tolist(), vectors[key_i].tolist(), score, top_result, key_i, 0.1)
-    score = score / score.max()
-
-    findWithNewScore(score)
-    
-
-    
+ 
 # create window
 window = ttk.Panedwindow(root, orient=tk.HORIZONTAL)
 window.pack(fill=tk.BOTH, expand=True)
@@ -364,7 +245,6 @@ clip_button.pack(side=tk.TOP)
 tk.Label(search_bar, text="Find index (1-11870):").pack(side=tk.TOP, pady=10)
 text_index = tk.Label(search_bar, text="Last selected image: ")
 text_index.pack(side=tk.TOP, pady=5)
- 
 
 # Find similar pictures
 find_similar_img_b = tk.Button(search_bar, text="Find similar pictures", command=(lambda: find_similar_pictures()))
@@ -378,20 +258,14 @@ find_back_img_b.pack(side=tk.TOP, pady=5)
 find_front_img_b = tk.Button(search_bar, text="Find front neighborhood", command=(lambda: find_front_img()))
 find_front_img_b.pack(side=tk.TOP, pady=5)
 
-# Update score
-update_score_b = tk.Button(search_bar, text="Update Score", command=(lambda: update_score()))
-update_score_b.pack(side=tk.TOP, pady=5)
 
 # Create a ComboBox
 selected_option = tk.StringVar()
 selected_option.set("cosine_distance")
-combo = tk.ttk.Combobox(search_bar, values=["cosine_distance", "euclidean_distance", "manhattan_distance", "pearson_correlation", "jaccard_similarity"],textvariable=selected_option)
+combo = tk.ttk.Combobox(search_bar, values=["cosine_distance", "euclidean_distance", "manhattan_distance", "jaccard_similarity"],textvariable=selected_option)
 combo.bind("<<ComboboxSelected>>", on_selection_change)
 combo.pack(side=tk.TOP, pady=5)
 
-# Update score
-random_picture_b = tk.Button(search_bar, text="Generate random", command=(lambda: generate_random()))
-random_picture_b.pack(side=tk.TOP, pady=5)
  
 # set images
 for s in range(shown):

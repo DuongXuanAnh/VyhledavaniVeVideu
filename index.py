@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog
 import requests
 from PIL import Image, ImageTk
 import os
@@ -10,6 +10,12 @@ import clip
 import requests
  
 dataset_path = "Images2/"
+
+def choose_folder():
+    global dataset_path
+    folder_selected = filedialog.askdirectory()
+    print(folder_selected)
+
 
 # get images address
 filenames = []
@@ -168,7 +174,6 @@ def find_similar_pictures():
 
 
 def find_back_img():
-    
     key_i = (selected_images[0][-9:])[:5]
     if(key_i == '00000'):
         key_i = 0
@@ -186,7 +191,6 @@ def find_back_img():
     hide_borders()
     
 def find_front_img():
-
     key_i = (selected_images[0][-9:])[:5]
     if(key_i == '00000'):
         key_i = 0
@@ -196,7 +200,6 @@ def find_front_img():
     top_result = []
     for i in range(96):
         top_result.append(key_i - i)
-
     for i in range(shown):
         shown_images[i] = ImageTk.PhotoImage(Image.open(filenames[top_result[i]]).resize(image_size))
         images_buttons[i].configure(image=shown_images[i], text=filenames[top_result[i]],
@@ -206,14 +209,19 @@ def find_front_img():
 # create window
 window = ttk.Panedwindow(root, orient=tk.HORIZONTAL)
 window.pack(fill=tk.BOTH, expand=True)
- 
+
+
 # create frames
 search_bar = ttk.Frame(window, width=root.winfo_screenwidth() / 4, height=root.winfo_screenheight(), relief=tk.SUNKEN)
 result_frame = ttk.Frame(window, width=(3 * root.winfo_screenwidth()) / 4, height=root.winfo_screenheight(),
                          relief=tk.SUNKEN)
 window.add(search_bar, weight=1)
 window.add(result_frame, weight=4)
- 
+
+ # Create button for selecting the folder
+folder_button = tk.Button(search_bar, text="Select Folder", command=choose_folder)
+folder_button.pack(side=tk.TOP, pady=15)
+
 # add text input
 tk.Label(search_bar, text="Text query:").pack(side=tk.TOP, pady=5)
 text_input = tk.Entry(search_bar, bd=3, width=32)
@@ -247,18 +255,20 @@ combo = tk.ttk.Combobox(search_bar, values=["cosine_distance", "euclidean_distan
 combo.bind("<<ComboboxSelected>>", on_selection_change)
 combo.pack(side=tk.TOP, pady=5)
 
-# set images
-for s in range(shown):
-    # load image
-    shown_images.append(ImageTk.PhotoImage(Image.open(filenames[s]).resize(image_size)))
-    # create button
-    images_buttons.append(tk.Button(result_frame, bg="black", bd=2, text=filenames[s], image=shown_images[s],
-                                    command=(lambda j=s: on_click(j))))
-    # set position of button
-    images_buttons[s].grid(row=(s // 12), column=(s % 12), sticky=tk.W)
-    # set double click to reset marking of images
-    images_buttons[s].bind('<Double-1>', lambda event: on_double_click())
- 
+def showSetImage():
+    # set images
+    for s in range(shown):
+        # load image
+        shown_images.append(ImageTk.PhotoImage(Image.open(filenames[s]).resize(image_size)))
+        # create button
+        images_buttons.append(tk.Button(result_frame, bg="black", bd=2, text=filenames[s], image=shown_images[s],
+                                        command=(lambda j=s: on_click(j))))
+        # set position of button
+        images_buttons[s].grid(row=(s // 12), column=(s % 12), sticky=tk.W)
+        # set double click to reset marking of images
+        images_buttons[s].bind('<Double-1>', lambda event: on_double_click())
+
+showSetImage()
 # set escape as exit
 root.bind('<Escape>', lambda e: close_win(e))
  

@@ -131,6 +131,24 @@ def find_similar_pictures():
     hide_borders()
 
 
+def find_back_img():
+    imgID = int(filenames.index(os.path.normpath(selected_images[0])))
+    top_result = []
+    for i in range(shown):
+        top_result.append(i + imgID)
+
+    for i in range(shown):
+        shown_images[i] = ImageTk.PhotoImage(Image.open(filenames[top_result[i]]).resize(image_size))
+        images_buttons[i].configure(image=shown_images[i], text=filenames[top_result[i]],
+                                    command=(lambda j=i: on_click(j)))
+    hide_borders()
+
+def find_front_img():
+    imgID = int(filenames.index(os.path.normpath(selected_images[0])))
+    top_result = []
+    
+
+
 def create_buttons():
     for s in range(shown):
         # create button
@@ -154,6 +172,10 @@ result_frame = ttk.Frame(window, width=(3 * root.winfo_screenwidth()) / 4, heigh
 window.add(search_bar, weight=1)
 window.add(result_frame, weight=4)
 
+# add directory selection button
+dir_button = tk.Button(search_bar, text="Choose Directory", command=select_directory)
+dir_button.pack(side=tk.TOP, pady=10)
+
 # add text input
 tk.Label(search_bar, text="Text query:").pack(side=tk.TOP, pady=5)
 text_input = tk.Entry(search_bar, bd=3, width=32)
@@ -168,13 +190,20 @@ clip_button.pack(side=tk.TOP)
 text_index = tk.Label(search_bar, text="Last selected image: ")
 text_index.pack(side=tk.TOP, pady=5)
 
-# add directory selection button
-dir_button = tk.Button(search_bar, text="Choose Directory", command=select_directory)
-dir_button.pack(side=tk.TOP, pady=10)
-
 # Find similar pictures
 find_similar_img_b = tk.Button(search_bar, text="Find similar pictures", command=(lambda: find_similar_pictures()))
 find_similar_img_b.pack(side=tk.TOP, pady=100)
+
+
+# Find front pictures
+find_front_img_b = tk.Button(search_bar, text="Prev", command=(lambda: find_front_img()))
+find_front_img_b.pack(side=tk.TOP, pady=5)
+
+# Find back pictures
+find_back_img_b = tk.Button(search_bar, text="Next", command=(lambda: find_back_img()))
+find_back_img_b.pack(side=tk.TOP, pady=5)
+
+
 
 # set escape as exit
 root.bind('<Escape>', lambda e: close_win(e))

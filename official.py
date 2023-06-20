@@ -19,7 +19,7 @@ root = tk.Tk()
 root.title("Searcher")
 root.wm_attributes('-fullscreen', 'true')
 
-image_size = (int(root.winfo_screenwidth() / 14) - 4, int(root.winfo_screenheight() / 8) - 6)
+image_size = (int(root.winfo_screenwidth() / 14) - 7, int(root.winfo_screenheight() / 8) - 6)
 
 selected_images = []
 
@@ -87,6 +87,7 @@ def on_click(index):
     else:
         images_buttons[index].config(bg="yellow")
         selected_images.append(images_buttons[index].cget("text")) 
+    text_index.config(text="Last selected image: " + selected_images[0][-9:])
 
 def on_double_click():
     hide_borders()
@@ -115,6 +116,10 @@ def load_images_from_directory(directory):
     create_buttons()  # create the buttons here
     if shown > 0:
         search_clip('')
+
+def find_similar_pictures():
+    key_i = (selected_images[0][-9:])[:5]
+    print(key_i)
 
 def create_buttons():
     for s in range(shown):
@@ -149,9 +154,17 @@ text_input.pack(side=tk.TOP, pady=5)
 clip_button = tk.Button(search_bar, text="Search Clip", command=(lambda: search_clip(text_input.get())))
 clip_button.pack(side=tk.TOP)
 
+# add info labels
+text_index = tk.Label(search_bar, text="Last selected image: ")
+text_index.pack(side=tk.TOP, pady=5)
+
 # add directory selection button
 dir_button = tk.Button(search_bar, text="Choose Directory", command=select_directory)
-dir_button.pack(side=tk.TOP)
+dir_button.pack(side=tk.TOP, pady=10)
+
+# Find similar pictures
+find_similar_img_b = tk.Button(search_bar, text="Find similar pictures", command=(lambda: find_similar_pictures()))
+find_similar_img_b.pack(side=tk.TOP, pady=100)
 
 # set escape as exit
 root.bind('<Escape>', lambda e: close_win(e))

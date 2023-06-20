@@ -2,6 +2,10 @@ import tkinter as tk
 from tkinter import ttk, filedialog
 from PIL import Image, ImageTk
 import os
+import numpy as np
+import pandas as pd
+import torch
+import clip
 
 dataset_path = ""
 
@@ -25,9 +29,50 @@ def hide_borders():
         button.config(bg="black")
     selected_images = []
 
+def cosine_distance(v1, v2): # cang nho cang giong
+    return 1 - np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+
+def topSimilarImages(text, numberOfImages = 96):
+    if (text == ""):
+        return range(numberOfImages)
+    else:
+           # Check if CSV file exists
+        if not os.path.isfile('CLIP_VITB32.csv'):
+            raise FileNotFoundError('CLIP_VITB32.csv not found.')
+
+        # Load the CLIP model
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model, preprocess = clip.load("ViT-B/32", device=device)
+
+        # Tokenize and encode text
+        text = clip.tokenize(text).to(device)
+        with torch.no_grad():
+            text_features = model.encode_text(text)
+        text_vector = np.array(text_features[0], dtype=np.float32)
+
+        # Load vectors in chunks to handle large files
+        chunksize = 50000
+        similarities = []
+        for chunk in pd.read_csv('CLIP_VITB32.csv', sep=";", chunksize=chunksize):
+            vectors = chunk.to_numpy()
+            # Compute similarities using vectorized operations for efficiency
+            similarities.extend([cosine_distance(text_vector, v) for v in vectors])
+
+        # Create DataFrame from similarities
+        df = pd.DataFrame(similarities, columns=['similarity'])
+
+        # Sort by similarity
+        df = df.sort_values(by='similarity', ascending=True)
+
+        # Return indices of top similar images
+        top_vectors = df[:numberOfImages]
+
+        return top_vectors.index.to_list()
+
+
 def search_clip(text):
     print(text)
-    top_result = range(shown)  # replace this line with your search function
+    top_result = topSimilarImages(text, numberOfImages = shown)  # replace this line with your search function
     for i in range(shown):
         image = Image.open(filenames[top_result[i]]).resize(image_size)
         photo = ImageTk.PhotoImage(image)

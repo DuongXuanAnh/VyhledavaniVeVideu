@@ -68,10 +68,12 @@ def topSimilarImages(text, numberOfImages = 96):
         top_vectors = df[:numberOfImages]
 
         return top_vectors.index.to_list()
-
+    
+def topSimilarImages2(imgID, numberOfImages = 96):
+    print(imgID)
+   
 
 def search_clip(text):
-    print(text)
     top_result = topSimilarImages(text, numberOfImages = shown)  # replace this line with your search function
     for i in range(shown):
         image = Image.open(filenames[top_result[i]]).resize(image_size)
@@ -86,8 +88,8 @@ def on_click(index):
         selected_images.remove(images_buttons[index].cget("text"))
     else:
         images_buttons[index].config(bg="yellow")
-        selected_images.append(images_buttons[index].cget("text")) 
-    text_index.config(text="Last selected image: " + selected_images[0][-9:])
+        selected_images.append(images_buttons[index].cget("text"))
+    text_index.config(text="Last selected image: " + os.path.basename(selected_images[0]))
 
 def on_double_click():
     hide_borders()
@@ -111,15 +113,23 @@ def load_images_from_directory(directory):
     if os.path.exists(directory):
         for fn in sorted(os.listdir(directory)):
             filename = os.path.join(directory, fn)
-            filenames.append(filename)
+            filenames.append(os.path.normpath(filename))
     shown = min(96, len(filenames))
     create_buttons()  # create the buttons here
     if shown > 0:
         search_clip('')
 
+
 def find_similar_pictures():
-    key_i = (selected_images[0][-9:])[:5]
-    print(key_i)
+    imgID = filenames.index(os.path.normpath(selected_images[0]))
+    top_result = topSimilarImages2(imgID, numberOfImages = shown)  # replace this line with your search function
+    for i in range(shown):
+        image = Image.open(filenames[top_result[i]]).resize(image_size)
+        photo = ImageTk.PhotoImage(image)
+        shown_images.append(photo)  # update the shown_images list
+        images_buttons[i].configure(image=photo, text=filenames[top_result[i]], command=(lambda j=i: on_click(j)))
+    hide_borders()
+
 
 def create_buttons():
     for s in range(shown):

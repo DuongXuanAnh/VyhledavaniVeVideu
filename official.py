@@ -37,8 +37,8 @@ def topSimilarImages(text, numberOfImages = 96):
         return range(numberOfImages)
     else:
            # Check if CSV file exists
-        if not os.path.isfile('CLIP_VITB32.csv'):
-            raise FileNotFoundError('CLIP_VITB32.csv not found.')
+        if not os.path.isfile('data.csv'):
+            raise FileNotFoundError('data.csv not found.')
 
         # Load the CLIP model
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -53,7 +53,7 @@ def topSimilarImages(text, numberOfImages = 96):
         # Load vectors in chunks to handle large files
         chunksize = 50000
         similarities = []
-        for chunk in pd.read_csv('CLIP_VITB32.csv', sep=";", chunksize=chunksize):
+        for chunk in pd.read_csv('data.csv', sep=";", chunksize=chunksize):
             vectors = chunk.to_numpy()
             # Compute similarities using vectorized operations for efficiency
             similarities.extend([cosine_distance(text_vector, v) for v in vectors])
@@ -70,7 +70,20 @@ def topSimilarImages(text, numberOfImages = 96):
         return top_vectors.index.to_list()
     
 def topSimilarImages2(imgID, numberOfImages = 96):
-    print(imgID)
+    df = pd.read_csv('data.csv', sep=";")
+    vectors = df.to_numpy()
+    imgID = int(imgID)
+    img_vector = vectors[imgID]
+    similarities = [cosine_distance(img_vector, v) for v in vectors]
+    # Add the similarities as a new column to the DataFrame
+    df['similarity'] = similarities
+    # Sort the vectors by their similarity to the reference vector
+    df = df.sort_values(by='similarity', ascending=True)
+
+    # Select the top 5 vectors
+    top_vectors = df[:numberOfImages]
+
+    return top_vectors.index.to_list()
    
 
 def search_clip(text):

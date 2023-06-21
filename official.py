@@ -133,10 +133,16 @@ def find_similar_pictures():
 
 def find_back_img():
     imgID = int(filenames.index(os.path.normpath(selected_images[0])))
-    top_result = []
-    for i in range(shown):
-        top_result.append(i + imgID)
 
+    top_result = []
+
+    for i in range(shown):
+        if(imgID == (len(filenames) - 1)):
+            top_result.append(imgID)
+            imgID = 0 - i
+        
+        top_result.append(i + imgID)
+ 
     for i in range(shown):
         shown_images[i] = ImageTk.PhotoImage(Image.open(filenames[top_result[i]]).resize(image_size))
         images_buttons[i].configure(image=shown_images[i], text=filenames[top_result[i]],
@@ -146,7 +152,14 @@ def find_back_img():
 def find_front_img():
     imgID = int(filenames.index(os.path.normpath(selected_images[0])))
     top_result = []
+    for i in range(96):
+        top_result.append(imgID - i)
     
+    for i in range(shown):
+        shown_images[i] = ImageTk.PhotoImage(Image.open(filenames[top_result[shown - i - 1]]).resize(image_size))
+        images_buttons[i].configure(image=shown_images[i], text=filenames[top_result[shown - i - 1]],
+                                    command=(lambda j=i: on_click(j)))
+    hide_borders()
 
 
 def create_buttons():

@@ -1,13 +1,15 @@
 import tkinter as tk
-from tkinter import ttk, filedialog
+from tkinter import ttk, filedialog, messagebox
 from PIL import Image, ImageTk
 import os
 import numpy as np
 import pandas as pd
 import torch
 import clip
+import tqdm
 
 dataset_path = ""
+csv_file_path = "CLIP_VITB32.csv"
 
 # get images address
 filenames = []
@@ -37,8 +39,8 @@ def topSimilarImages(text, numberOfImages = 96):
         return range(numberOfImages)
     else:
            # Check if CSV file exists
-        if not os.path.isfile('data.csv'):
-            raise FileNotFoundError('data.csv not found.')
+        if not os.path.isfile(csv_file_path):
+            raise FileNotFoundError(csv_file_path + ' not found.')
 
         # Load the CLIP model
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -53,7 +55,7 @@ def topSimilarImages(text, numberOfImages = 96):
         # Load vectors in chunks to handle large files
         chunksize = 50000
         similarities = []
-        for chunk in pd.read_csv('data.csv', sep=";", chunksize=chunksize):
+        for chunk in pd.read_csv(csv_file_path, sep=";", chunksize=chunksize):
             vectors = chunk.to_numpy()
             # Compute similarities using vectorized operations for efficiency
             similarities.extend([cosine_distance(text_vector, v) for v in vectors])
@@ -70,7 +72,7 @@ def topSimilarImages(text, numberOfImages = 96):
         return top_vectors.index.to_list()
     
 def topSimilarImages2(imgID, numberOfImages = 96):
-    df = pd.read_csv('data.csv', sep=";")
+    df = pd.read_csv(csv_file_path, sep=";")
     vectors = df.to_numpy()
     imgID = int(imgID)
     img_vector = vectors[imgID]
@@ -110,10 +112,38 @@ def on_double_click():
 def close_win(e):
     root.destroy()
 
+
 def select_directory():
     global dataset_path
     dataset_path = filedialog.askdirectory()
+
+    # -------------------------------------------------------------------------
+
+    # device = "cuda" if torch.cuda.is_available() else "cpu"
+    # model, preprocess = clip.load("ViT-B/32", device=device)
+
+    # try:
+    #     with open(csv_file_path, 'w') as csv_file:
+    #         file_list = os.listdir(dataset_path)
+
+    #         for filename in file_list:
+    #             image_path = os.path.join(dataset_path, filename)
+    #             try:
+    #                 image = preprocess(Image.open(image_path)).unsqueeze(0).to(device)
+    #                 image_vector = model.encode_image(image)
+    #                 image_vector = image_vector / image_vector.norm(dim=-1, keepdim=True)
+    #                 image_vector_str = ';'.join(str(value) for value in image_vector.flatten().tolist())
+    #                 csv_file.write(image_vector_str + '\n')
+    #             except Exception:
+    #                 print(f"Skipping {image_path} as it is not a valid image file.")
+    #     load_images_from_directory(dataset_path)
+
+    #     messagebox.showinfo("Loading Complete", "Images have been loaded successfully.")
+    # except Exception as e:
+    #     messagebox.showerror("Loading Error", f"An error occurred while loading images:\n\n{str(e)}")
+    # -------------------------------------------------------------------------
     load_images_from_directory(dataset_path)
+
 
 def load_images_from_directory(directory):
     global filenames, shown_images, shown, images_buttons
@@ -146,14 +176,11 @@ def find_similar_pictures():
 
 def find_back_img():
     imgID = int(filenames.index(os.path.normpath(selected_images[0])))
-
     top_result = []
-
     for i in range(shown):
         if(imgID == (len(filenames) - 1)):
             top_result.append(imgID)
             imgID = 0 - i
-        
         top_result.append(i + imgID)
  
     for i in range(shown):

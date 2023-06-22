@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 import torch
 import clip
-import tqdm
 
 dataset_path = ""
 csv_file_path = "CLIP_VITB32.csv"
@@ -71,7 +70,7 @@ def topSimilarImages(text, numberOfImages = 96):
 
         return top_vectors.index.to_list()
     
-def topSimilarImages2(imgID, numberOfImages = 96):
+def topSimilarImagesUsingSimilarity(imgID, numberOfImages = 96):
     df = pd.read_csv(csv_file_path, sep=";")
     vectors = df.to_numpy()
     imgID = int(imgID)
@@ -82,7 +81,6 @@ def topSimilarImages2(imgID, numberOfImages = 96):
     # Sort the vectors by their similarity to the reference vector
     df = df.sort_values(by='similarity', ascending=True)
 
-    # Select the top 5 vectors
     top_vectors = df[:numberOfImages]
 
     return top_vectors.index.to_list()
@@ -165,7 +163,7 @@ def load_images_from_directory(directory):
 
 def find_similar_pictures():
     imgID = filenames.index(os.path.normpath(selected_images[0]))
-    top_result = topSimilarImages2(imgID, numberOfImages = shown)  # replace this line with your search function
+    top_result = topSimilarImagesUsingSimilarity(imgID, numberOfImages = shown)  # replace this line with your search function
     for i in range(shown):
         image = Image.open(filenames[top_result[i]]).resize(image_size)
         photo = ImageTk.PhotoImage(image)
@@ -248,13 +246,17 @@ find_similar_img_b = tk.Button(search_bar, text="Find similar pictures", command
 find_similar_img_b.pack(side=tk.TOP, pady=100)
 
 
+# Create a frame to contain the navigation buttons
+navigation_frame = ttk.Frame(search_bar)
+navigation_frame.pack(side=tk.TOP, pady=5)
+
 # Find front pictures
-find_front_img_b = tk.Button(search_bar, text="Prev", command=(lambda: find_front_img()))
-find_front_img_b.pack(side=tk.TOP, pady=5)
+find_front_img_b = tk.Button(navigation_frame, text="Prev", command=(lambda: find_front_img()))
+find_front_img_b.pack(side=tk.LEFT)
 
 # Find back pictures
-find_back_img_b = tk.Button(search_bar, text="Next", command=(lambda: find_back_img()))
-find_back_img_b.pack(side=tk.TOP, pady=5)
+find_back_img_b = tk.Button(navigation_frame, text="Next", command=(lambda: find_back_img()))
+find_back_img_b.pack(side=tk.LEFT)
 
 
 

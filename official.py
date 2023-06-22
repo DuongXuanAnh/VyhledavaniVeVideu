@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog
 from PIL import Image, ImageTk
 import os
 import numpy as np
@@ -33,39 +33,53 @@ def hide_borders():
 def cosine_distance(v1, v2): # cang nho cang giong
     return 1 - np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
 
+def euclidean_distance(v1, v2):
+    return np.sqrt(np.sum((v1 - v2)**2))
+
+selected_value_cbox = "cosine_distance"
+
+def on_selection_change(event):
+  # Get the selected value from the ComboBox
+  global selected_value_cbox
+  selected_value_cbox = combo.get()
+  print(f"Selected value: {selected_value_cbox}")
+
 def topSimilarImages(text, numberOfImages = 96):
     if (text == ""):
         return range(numberOfImages)
     else:
-           # Check if CSV file exists
+        # Check if CSV file exists
         if not os.path.isfile(csv_file_path):
             raise FileNotFoundError(csv_file_path + ' not found.')
 
-        # Load the CLIP model
         device = "cuda" if torch.cuda.is_available() else "cpu"
         model, preprocess = clip.load("ViT-B/32", device=device)
 
-        # Tokenize and encode text
         text = clip.tokenize(text).to(device)
+
         with torch.no_grad():
             text_features = model.encode_text(text)
+
         text_vector = np.array(text_features[0], dtype=np.float32)
 
-        # Load vectors in chunks to handle large files
-        chunksize = 50000
-        similarities = []
-        for chunk in pd.read_csv(csv_file_path, sep=";", chunksize=chunksize):
-            vectors = chunk.to_numpy()
-            # Compute similarities using vectorized operations for efficiency
-            similarities.extend([cosine_distance(text_vector, v) for v in vectors])
+        df = pd.read_csv('CLIP_VITB32.csv', sep=";")
 
-        # Create DataFrame from similarities
-        df = pd.DataFrame(similarities, columns=['similarity'])
+        vectors = df.to_numpy()
 
-        # Sort by similarity
+        if(selected_value_cbox == "euclidean_distance"):
+            similarities = [euclidean_distance(text_vector, v) for v in vectors]
+        else:
+            similarities = [cosine_distance(text_vector, v) for v in vectors]
+
+
+        print("Using similarity: " + selected_value_cbox)
+        # Add the similarities as a new column to the DataFrame
+        df['similarity'] = similarities
+
+        # Sort the vectors by their similarity to the reference vector
         df = df.sort_values(by='similarity', ascending=True)
 
-        # Return indices of top similar images
+        # Select the top 5 vectors
         top_vectors = df[:numberOfImages]
 
         return top_vectors.index.to_list()
@@ -75,7 +89,12 @@ def topSimilarImagesUsingSimilarity(imgID, numberOfImages = 96):
     vectors = df.to_numpy()
     imgID = int(imgID)
     img_vector = vectors[imgID]
-    similarities = [cosine_distance(img_vector, v) for v in vectors]
+
+    if(selected_value_cbox == "euclidean_distance"):
+        similarities = [euclidean_distance(img_vector, v) for v in vectors]
+    else:
+        similarities = [cosine_distance(img_vector, v) for v in vectors]
+
     # Add the similarities as a new column to the DataFrame
     df['similarity'] = similarities
     # Sort the vectors by their similarity to the reference vector
@@ -245,6 +264,12 @@ text_index.pack(side=tk.TOP, pady=5)
 find_similar_img_b = tk.Button(search_bar, text="Find similar pictures", command=(lambda: find_similar_pictures()))
 find_similar_img_b.pack(side=tk.TOP, pady=100)
 
+# Create a ComboBox
+selected_option = tk.StringVar()
+selected_option.set("cosine_distance")
+combo = tk.ttk.Combobox(search_bar, values=["cosine_distance", "euclidean_distance"],textvariable=selected_option)
+combo.bind("<<ComboboxSelected>>", on_selection_change)
+combo.pack(side=tk.TOP, pady=5)
 
 # Create a frame to contain the navigation buttons
 navigation_frame = ttk.Frame(search_bar)

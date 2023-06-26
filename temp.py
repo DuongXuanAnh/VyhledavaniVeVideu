@@ -1,24 +1,18 @@
-import os
-from PIL import Image
-import torch
-import clip
+from minisom import MiniSom
+import numpy as np
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-model, preprocess = clip.load("ViT-B/32", device=device)
+# Náhodná trénovací data
+data = np.random.rand(100, 5)
 
-image_folder = r"C:\Users\david\Pictures\Screenshots"  # Use raw string (r"") or double backslashes (\\)
-file_path = 'data.csv'
+print(data)
 
-with open(file_path, 'w') as csv_file:
-    for filename in os.listdir(image_folder):
-        image_path = os.path.join(image_folder, filename)
-        try:
-            image = preprocess(Image.open(image_path)).unsqueeze(0).to(device)
-            image_vector = model.encode_image(image)
-            image_vector = image_vector / image_vector.norm(dim=-1, keepdim=True)
-            image_vector_str = ';'.join(str(value) for value in image_vector.flatten().tolist())
-            csv_file.write(image_vector_str + '\n')
-        except Exception:
-            print(f"Skipping {image_path} as it is not a valid image file.")
+# Inicializace SOM
+som = MiniSom(7, 7, 5, sigma=1.0, learning_rate=0.5)
 
-print('Data written to', file_path)
+# Trénování SOM
+som.train_random(data, 100)
+
+# Výstup
+for (x, y, z, w, v) in data:
+    w_x, w_y = som.winner([x, y, z, w, v])
+    print(f'x={x:.2f}, y={y:.2f}, z={z:.2f}, w={w:.2f}, v={v:.2f} -> klaster ({w_x}, {w_y})')

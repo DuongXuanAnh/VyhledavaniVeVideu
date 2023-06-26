@@ -16,8 +16,6 @@ filenames = []
 shown_images = []
 images_buttons = []
 shown = 96
-vectors = []
-
 
 root = tk.Tk()
 root.title("Searcher")
@@ -65,6 +63,9 @@ def topSimilarImages(text, numberOfImages = 96):
 
         text_vector = np.array(text_features[0], dtype=np.float32)
 
+        df = pd.read_csv(csv_file_path, sep=";")
+        vectors = df.to_numpy()
+
         if(selected_value_cbox == "euclidean_distance"):
             similarities = [euclidean_distance(text_vector, v) for v in vectors]
         else:
@@ -84,6 +85,8 @@ def topSimilarImages(text, numberOfImages = 96):
         return top_vectors.index.to_list()
     
 def topSimilarImagesUsingSimilarity(imgID, numberOfImages = 96):
+    df = pd.read_csv(csv_file_path, sep=";")
+    vectors = df.to_numpy()
     imgID = int(imgID)
     img_vector = vectors[imgID]
 

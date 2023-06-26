@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, filedialog
+from tkinter import ttk, filedialog, messagebox
 from PIL import Image, ImageTk
 import os
 import numpy as np
@@ -16,6 +16,9 @@ filenames = []
 shown_images = []
 images_buttons = []
 shown = 96
+
+df = None
+vectors = None
 
 root = tk.Tk()
 root.title("Searcher")
@@ -46,10 +49,10 @@ def on_selection_change(event):
   print(f"Selected value: {selected_value_cbox}")
 
 def topSimilarImages(text, numberOfImages = 96):
+    global df, vectors
     if (text == ""):
         return range(numberOfImages)
     else:
-        # Check if CSV file exists
         if not os.path.isfile(csv_file_path):
             raise FileNotFoundError(csv_file_path + ' not found.')
 
@@ -63,14 +66,10 @@ def topSimilarImages(text, numberOfImages = 96):
 
         text_vector = np.array(text_features[0], dtype=np.float32)
 
-        df = pd.read_csv(csv_file_path, sep=";")
-        vectors = df.to_numpy()
-
         if(selected_value_cbox == "euclidean_distance"):
             similarities = [euclidean_distance(text_vector, v) for v in vectors]
         else:
             similarities = [cosine_distance(text_vector, v) for v in vectors]
-
 
         print("Using similarity: " + selected_value_cbox)
         # Add the similarities as a new column to the DataFrame
@@ -79,14 +78,12 @@ def topSimilarImages(text, numberOfImages = 96):
         # Sort the vectors by their similarity to the reference vector
         df = df.sort_values(by='similarity', ascending=True)
 
-        # Select the top 5 vectors
         top_vectors = df[:numberOfImages]
 
         return top_vectors.index.to_list()
     
 def topSimilarImagesUsingSimilarity(imgID, numberOfImages = 96):
-    df = pd.read_csv(csv_file_path, sep=";")
-    vectors = df.to_numpy()
+    global df, vectors
     imgID = int(imgID)
     img_vector = vectors[imgID]
 
@@ -129,6 +126,10 @@ def on_double_click():
 def close_win(e):
     root.destroy()
 
+def load_data():
+    global df, vectors
+    df = pd.read_csv(csv_file_path, sep=";")
+    vectors = df.to_numpy()
 
 def select_directory():
     global dataset_path
@@ -136,28 +137,28 @@ def select_directory():
 
     # -------------------------------------------------------------------------
 
-    # device = "cuda" if torch.cuda.is_available() else "cpu"
-    # model, preprocess = clip.load("ViT-B/32", device=device)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model, preprocess = clip.load("ViT-B/32", device=device)
 
-    # try:
-    #     with open(csv_file_path, 'w') as csv_file:
-    #         file_list = os.listdir(dataset_path)
+    try:
+        with open(csv_file_path, 'w') as csv_file:
+            file_list = os.listdir(dataset_path)
 
-    #         for filename in file_list:
-    #             image_path = os.path.join(dataset_path, filename)
-    #             try:
-    #                 image = preprocess(Image.open(image_path)).unsqueeze(0).to(device)
-    #                 image_vector = model.encode_image(image)
-    #                 image_vector = image_vector / image_vector.norm(dim=-1, keepdim=True)
-    #                 image_vector_str = ';'.join(str(value) for value in image_vector.flatten().tolist())
-    #                 csv_file.write(image_vector_str + '\n')
-    #             except Exception:
-    #                 print(f"Skipping {image_path} as it is not a valid image file.")
-    #     load_images_from_directory(dataset_path)
+            for filename in file_list:
+                image_path = os.path.join(dataset_path, filename)
+                try:
+                    image = preprocess(Image.open(image_path)).unsqueeze(0).to(device)
+                    image_vector = model.encode_image(image)
+                    image_vector = image_vector / image_vector.norm(dim=-1, keepdim=True)
+                    image_vector_str = ';'.join(str(value) for value in image_vector.flatten().tolist())
+                    csv_file.write(image_vector_str + '\n')
+                except Exception:
+                    print(f"Skipping {image_path} as it is not a valid image file.")
+        load_images_from_directory(dataset_path)
 
-    #     messagebox.showinfo("Loading Complete", "Images have been loaded successfully.")
-    # except Exception as e:
-    #     messagebox.showerror("Loading Error", f"An error occurred while loading images:\n\n{str(e)}")
+        messagebox.showinfo("Loading Complete", "Images have been loaded successfully.")
+    except Exception as e:
+        messagebox.showerror("Loading Error", f"An error occurred while loading images:\n\n{str(e)}")
     # -------------------------------------------------------------------------
     load_images_from_directory(dataset_path)
 
@@ -176,6 +177,7 @@ def load_images_from_directory(directory):
             filenames.append(os.path.normpath(filename))
     shown = min(96, len(filenames))
     create_buttons()  # create the buttons here
+    load_data()
     if shown > 0:
         search_clip('')
 
@@ -191,26 +193,30 @@ def find_similar_pictures():
     hide_borders()
 
 def update_score():
+    global df, vectors
     imgID = int(filenames.index(os.path.normpath(selected_images[0])))
     df = pd.read_csv(csv_file_path, sep=";")
     vectors = df.to_numpy()
     img_vector = vectors[imgID]
 
-    som = MiniSom(50, 50, 512, sigma=1.0, learning_rate=0.5)
-    som.train_random(vectors, 10000)
+    som = MiniSom(20, 20, 512, sigma=1.0, learning_rate=0.5)
+    som.train_random(vectors, 400)
     winning_node = som.winner(img_vector)
 
     similar_vectors = []
+    index = []
     for i, vector in enumerate(vectors):
         if som.winner(vector) == winning_node:
             similar_vectors.append(vector)
+            index.append(i)
 
-    similar_vectors = similar_vectors[:96]
+    similar_vectors = similar_vectors[:shown]
 
-    for i in range(shown):
-        shown_images[i] = ImageTk.PhotoImage(Image.open(filenames[similar_vectors[shown - i - 1]]).resize(image_size))
-        images_buttons[i].configure(image=shown_images[i], text=filenames[similar_vectors[shown - i - 1]],
-                                    command=(lambda j=i: on_click(j)))
+    for i in range(len(similar_vectors)):
+        image = Image.open(filenames[index[i]]).resize(image_size)
+        photo = ImageTk.PhotoImage(image)
+        shown_images.append(photo)  # update the shown_images list
+        images_buttons[i].configure(image=photo, text=filenames[index[i]], command=(lambda j=i: on_click(j)))
     hide_borders()
 
 def find_back_img():
@@ -243,10 +249,8 @@ def find_front_img():
 
 def create_buttons():
     for s in range(shown):
-        # create button
         btn = tk.Button(result_frame, bg="black", bd=2, command=None)
         images_buttons.append(btn)
-        # set position of button
         btn.grid(row=(s // 12), column=(s % 12), sticky=tk.W)
         # set double click to reset marking of images
         btn.bind('<Double-1>', lambda event: on_double_click())

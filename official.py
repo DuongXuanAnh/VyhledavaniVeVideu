@@ -6,15 +6,18 @@ import numpy as np
 import pandas as pd
 import torch
 import clip
+from minisom import MiniSom
 
 dataset_path = ""
-csv_file_path = "CLIP_VITB32.csv"
+csv_file_path = "data.csv"
 
 # get images address
 filenames = []
 shown_images = []
 images_buttons = []
 shown = 96
+vectors = []
+
 
 root = tk.Tk()
 root.title("Searcher")
@@ -62,10 +65,6 @@ def topSimilarImages(text, numberOfImages = 96):
 
         text_vector = np.array(text_features[0], dtype=np.float32)
 
-        df = pd.read_csv('CLIP_VITB32.csv', sep=";")
-
-        vectors = df.to_numpy()
-
         if(selected_value_cbox == "euclidean_distance"):
             similarities = [euclidean_distance(text_vector, v) for v in vectors]
         else:
@@ -85,8 +84,6 @@ def topSimilarImages(text, numberOfImages = 96):
         return top_vectors.index.to_list()
     
 def topSimilarImagesUsingSimilarity(imgID, numberOfImages = 96):
-    df = pd.read_csv(csv_file_path, sep=";")
-    vectors = df.to_numpy()
     imgID = int(imgID)
     img_vector = vectors[imgID]
 
@@ -190,6 +187,28 @@ def find_similar_pictures():
         images_buttons[i].configure(image=photo, text=filenames[top_result[i]], command=(lambda j=i: on_click(j)))
     hide_borders()
 
+def update_score():
+    imgID = int(filenames.index(os.path.normpath(selected_images[0])))
+    df = pd.read_csv(csv_file_path, sep=";")
+    vectors = df.to_numpy()
+    img_vector = vectors[imgID]
+
+    som = MiniSom(50, 50, 512, sigma=1.0, learning_rate=0.5)
+    som.train_random(vectors, 10000)
+    winning_node = som.winner(img_vector)
+
+    similar_vectors = []
+    for i, vector in enumerate(vectors):
+        if som.winner(vector) == winning_node:
+            similar_vectors.append(vector)
+
+    similar_vectors = similar_vectors[:96]
+
+    for i in range(shown):
+        shown_images[i] = ImageTk.PhotoImage(Image.open(filenames[similar_vectors[shown - i - 1]]).resize(image_size))
+        images_buttons[i].configure(image=shown_images[i], text=filenames[similar_vectors[shown - i - 1]],
+                                    command=(lambda j=i: on_click(j)))
+    hide_borders()
 
 def find_back_img():
     imgID = int(filenames.index(os.path.normpath(selected_images[0])))
@@ -263,6 +282,10 @@ text_index.pack(side=tk.TOP, pady=5)
 # Find similar pictures
 find_similar_img_b = tk.Button(search_bar, text="Find similar pictures", command=(lambda: find_similar_pictures()))
 find_similar_img_b.pack(side=tk.TOP, pady=100)
+
+# Update Score
+updateScore_button = tk.Button(search_bar, text="Update Score", command=(lambda: update_score()))
+updateScore_button.pack(side=tk.TOP, pady=100)
 
 # Create a ComboBox
 selected_option = tk.StringVar()
